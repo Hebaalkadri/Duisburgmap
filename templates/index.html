@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duisburg Wohnlagen Karte</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <style>
+         body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #f8f9fa;
+        }
+        #map { 
+            height: 600px; 
+            width: 100%; 
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .search-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        #street-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        #street_name {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #evaluation-result {
+            margin-top: 15px;
+            font-size: 16px;
+        }
+        .legend {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            line-height: 24px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #999;
+            border-radius: 3px;
+        }
+        .result-card {
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .rating-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        #search-results {
+            margin-top: 15px;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-item {
+            background-color: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 20px;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+        .filter-item:hover {
+            background-color: #e9ecef;
+        }
+        .filter-item.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        #district-filter {
+            margin-top: 15px;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .info-box {
+            background-color: #e9f5ff;
+            border-left: 4px solid #007bff;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .error-box {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            border-bottom: 2px solid #4CAF50;
+            font-weight: bold;
+        }
+        .tab:hover {
+            background-color: #f8f9fa;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="header">
+        <h1>Duisburg Wohnlagen Karte</h1>
+        <p>Finden und bewerten Sie Wohngebiete in Duisburg</p>
+    </div>
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="/stats" style="display: inline-block; padding: 8px 15px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            <i class="fas fa-chart-bar" style="margin-right: 5px;"></i> Statistiken anzeigen
+        </a>
+    </div>
+    <div class="search-container">
+        <div class="tabs">
+            <div class="tab active" data-tab="search">Straßensuche</div>
+            <div class="tab" data-tab="district">Stadtteilsuche</div>
+            <div class="tab" data-tab="info">Über Wohnlagen</div>
+        </div>
+        
+        <div id="tab-content-search">
+            <h2>Suche nach einer Straße</h2>
+            <form id="street-form">
+                <input type="text" id="street_name" name="street_name" placeholder="Straßennamen eingeben (z.B. Königstraße)" required>
+                <button type="submit"><i class="fas fa-search"></i> Suchen</button>
+            </form>
+            
+            <div class="filters">
+                <div class="filter-item active" data-rating="all">Alle Bewertungen</div>
+                <div class="filter-item" data-rating="1">Sehr gut (1)</div>
+                <div class="filter-item" data-rating="2">Gut (2)</div>
+                <div class="filter-item" data-rating="3">Mittel (3)</div>
+                <div class="filter-item" data-rating="4">Einfach (4)</div>
+            </div>
+            
+            <div id="search-results"></div>
+        </div>
+        
+        <div id="tab-content-district" style="display: none;">
+            <h2>Suche nach Stadtteil</h2>
+            <select id="district-filter">
+                <option value="">Stadtteile werden geladen...</option>
+            </select>
+            <div id="district-results"></div>
+        </div>
+        
+        <div id="tab-content-info" style="display: none;">
+            <h2>Über Wohnlagen</h2>
+            <p>Die Duisburger Stadtverwaltung klassifiziert Wohngebiete in vier Kategorien:</p>
+            
+            <div class="legend" style="margin-bottom: 20px;">
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #C500FF"></div>
+                    <span><strong>Sehr gut (1)</strong> - Sehr gute Wohnlagen</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #FF0000"></div>
+                    <span><strong>Gut (2)</strong> - Gute Wohnlagen</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #E69800"></div>
+                    <span><strong>Mittel (3)</strong> - Mittlere Wohnlagen</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #9C9C9C"></div>
+                    <span><strong>Einfach (4)</strong> - Einfache Wohnlagen</span>
+                </div>
+            </div>
+            
+            <p>Diese Klassifizierungen werden von der Stadt für verschiedene Verwaltungszwecke verwendet und können hilfreich sein, wenn Sie nach einem Wohnort in Duisburg suchen.</p>
+             
+            <div class="info-box">
+                <p><strong>Hinweis:</strong> Diese Daten stammen direkt vom offiziellen Geoportal der Stadt Duisburg und werden regelmäßig aktualisiert.</p>
+            </div>
+        </div>
+    </div>
+    <div class="loading-control" style="display: none;"></div>
+
+    <div id="map"></div>
+    
+    <footer>
+        &copy; 2025 Duisburg Wohnlagen Karte | Datenquelle: <a href="https://geoportal2.duisburg.de" target="_blank">Geoportal Duisburg</a>
+    </footer>
+    
+
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([51.4344, 6.7623], 12);
+        var markers = L.layerGroup().addTo(map);
+        var geojsonLayer;
+        var currentFilter = 'all';
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Define colors for Wohnlagen
+        const wohnlageColors = {
+            'sehr gut': '#C500FF',
+            'gut': '#FF0000',
+            'mittel': '#E69800',
+            'einfach': '#9C9C9C'
+        };
+
+        // Add legend to the map
+        function addLegend() {
+            const legend = L.control({position: 'bottomright'});
+            
+            legend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'legend');
+                div.innerHTML = '<h4>Wohnlage Ratings</h4>';
+                
+                // Add legend items
+                Object.entries(wohnlageColors).forEach(([label, color]) => {
+                    let ratingNumber;
+                    switch(label) {
+                        case 'sehr gut': ratingNumber = 1; break;
+                        case 'gut': ratingNumber = 2; break;
+                        case 'mittel': ratingNumber = 3; break;
+                        case 'einfach': ratingNumber = 4; break;
+                    }
+                    
+                    div.innerHTML += `
+                        <div class="legend-item">
+                            <div class="color-box" style="background-color: ${color}"></div>
+                            <span>${label} (${ratingNumber})</span>
+                        </div>
+                    `;
+                });
+                
+                return div;
+            };
+            
+            legend.addTo(map);
+        }
+
+        // Get center point of a feature, safely handling different geometry types
+        function getFeatureCenter(feature) {
+            try {
+                // For polygon features
+                if (feature.geometry.type === 'Polygon') {
+                    // Get first coordinate as a representative point
+                    const coordinates = feature.geometry.coordinates[0][0];
+                    return [coordinates[1], coordinates[0]]; // Leaflet uses [lat, lng] format
+                }
+                // For multipolygon features
+                else if (feature.geometry.type === 'MultiPolygon') {
+                    const coordinates = feature.geometry.coordinates[0][0][0];
+                    return [coordinates[1], coordinates[0]];
+                }
+                // For point features
+                else if (feature.geometry.type === 'Point') {
+                    const coordinates = feature.geometry.coordinates;
+                    return [coordinates[1], coordinates[0]];
+                }
+            } catch (e) {
+                console.error("Error getting feature center:", e);
+            }
+            // Default fallback
+            return [51.4344, 6.7623]; // Default to Duisburg center
+        }
+
+        // Show loading spinner
+        function showLoading(containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading data...</p>
+                </div>
+            `;
+        }
+
+        // Show error message
+        function showError(containerId, message) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div class="error-box">
+                    <p><strong>Error:</strong> ${message}</p>
+                    <p>Please try again later or contact support.</p>
+                </div>
+            `;
+        }
+
+        // Tab switching functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Hide all tab content
+                document.querySelectorAll('[id^="tab-content-"]').forEach(content => {
+                    content.style.display = 'none';
+                });
+                
+                // Show the corresponding tab content
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(`tab-content-${tabId}`).style.display = 'block';
+            });
+        });
+
+      // Fetch and display GeoJSON Wohnlagen data
+function loadGeojsonData() {
+    showLoading('search-results');
+    
+    // Prüfe, ob das Element existiert, bevor du versuchst, seinen Stil zu ändern
+    const loadingControl = document.querySelector('.loading-control');
+    if (loadingControl) {
+        loadingControl.style.display = 'flex';
+    }
+    
+    fetch('/geojson')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Clear the loading indicators
+            document.getElementById('search-results').innerHTML = '';
+            
+            // Prüfe wieder, ob das Element existiert
+            if (loadingControl) {
+                loadingControl.style.display = 'none';
+            }
+            
+            // Add the GeoJSON layer with proper styling
+            if (geojsonLayer) {
+                map.removeLayer(geojsonLayer);
+            }
+            
+            geojsonLayer = L.geoJSON(data, {
+                // Rest des Codes...
+            }).addTo(map);
+            
+            // Add the legend after the layer is loaded
+            addLegend();
+            
+            // Load districts for the district filter
+            loadDistricts();
+            
+            // Auto-search for a default location to demonstrate color coding
+            autoSearchLocation();
+        })
+        .catch(error => {
+            console.error('Error loading GeoJSON data:', error);
+            showError('search-results', 'Failed to load map data. Please try refreshing the page.');
+        });
+}
+        
+        // Load districts for the district filter
+        function loadDistricts() {
+            fetch('/districts')
+                .then(response => response.json())
+                .then(data => {
+                    const districtFilter = document.getElementById('district-filter');
+                    districtFilter.innerHTML = '<option value="">Select a district...</option>';
+                    
+                    if (data.districts && data.districts.length > 0) {
+                        data.districts.forEach(district => {
+                            const option = document.createElement('option');
+                            option.value = district;
+                            option.textContent = district;
+                            districtFilter.appendChild(option);
+                        });
+                    } else {
+                        districtFilter.innerHTML = '<option value="">No districts found</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading districts:', error);
+                    document.getElementById('district-filter').innerHTML = '<option value="">Error loading districts</option>';
+                });
+        }
+        
+        // Function to automatically search for a location when the page loads
+        function autoSearchLocation() {
+            // Example: Search for a prominent street in Duisburg
+            const defaultStreet = 'Königstraße';
+            
+            fetch('/evaluate', {
+                method: 'POST',
+                body: new URLSearchParams('street_name=' + defaultStreet),
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.count > 0 && data.matches[0].coordinates && data.matches[0].coordinates.length >= 2) {
+                    const coords = data.matches[0].coordinates;
+                    // Add a marker
+                    const marker = L.marker([coords[1], coords[0]]);
+                    markers.addLayer(marker);
+                    // Zoom to the location
+                    map.setView([coords[1], coords[0]], 16);
+                    // Show popup
+                    const match = data.matches[0];
+                    marker.bindPopup(`
+                        <strong>Address:</strong> ${match.address}<br>
+                        <strong>District:</strong> ${match.ortsteil || 'N/A'}<br>
+                        <strong>Wohnlage:</strong> ${match.wohnlage}<br>
+                        <strong>Rating:</strong> ${match.rating}/4
+                    `).openPopup();
+                    
+                    // Update the search field
+                    document.getElementById('street_name').value = defaultStreet;
+                    
+                    // Show the result in the search results area
+                    displaySearchResults(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error in auto-search:', error);
+            });
+        }
+        
+        // Funktion zur Anzeige von Suchergebnissen mit Begrenzung auf 10
+        function displaySearchResults(data) {
+    const resultsContainer = document.getElementById('search-results');
+    
+    if (data.count === 0) {
+        resultsContainer.innerHTML = `
+            <div class="warning-box">
+                <p>Keine Übereinstimmungen gefunden. Bitte versuchen Sie einen anderen Straßennamen.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Info-Box mit Anzahl der Treffer und Hinweis zur Begrenzung
+    let infoMessage = `<p>Gefunden: ${data.count} Übereinstimmung${data.count > 1 ? 'en' : ''}</p>`;
+    
+    // Wenn die Ergebnisse begrenzt wurden, zeige einen Hinweis an
+    if (data.limited && data.total_found > 10) {
+        infoMessage += `<p><strong>Hinweis:</strong> Die Anzeige wurde auf 10 Ergebnisse begrenzt. Insgesamt wurden ${data.total_found} Übereinstimmungen gefunden.</p>`;
+    }
+    
+    resultsContainer.innerHTML = `<div class="info-box">${infoMessage}</div>`;
+    
+    
+    // Filtere Ergebnisse wenn nötig
+    let filteredMatches = data.matches;
+    if (currentFilter !== 'all') {
+        filteredMatches = data.matches.filter(match => match.rating === parseInt(currentFilter));
+        
+        if (filteredMatches.length === 0) {
+            resultsContainer.innerHTML += `
+                <div class="warning-box">
+                    <p>Keine Übereinstimmungen mit Bewertung "${currentFilter}" gefunden. Zeige stattdessen alle Ergebnisse an.</p>
+                </div>
+            `;
+            filteredMatches = data.matches;
+        }
+    }
+    
+    filteredMatches.forEach(match => {
+        // Hole Abzeichenfarbe basierend auf Bewertung
+        let badgeColor;
+        switch(match.rating) {
+            case 1: badgeColor = wohnlageColors['sehr gut']; break;
+            case 2: badgeColor = wohnlageColors['gut']; break;
+            case 3: badgeColor = wohnlageColors['mittel']; break;
+            case 4: badgeColor = wohnlageColors['einfach']; break;
+            default: badgeColor = '#999999';
+        }
+        
+        // Erstelle Ergebniskarte
+        const resultCard = document.createElement('div');
+        resultCard.className = 'result-card';
+        resultCard.innerHTML = `
+            <h3>${match.address}
+                <span class="rating-badge" style="background-color: ${badgeColor}">
+                    Bewertung: ${match.rating}/4
+                </span>
+            </h3>
+            <div class="result-details">
+                <p><i class="fas fa-home" style="margin-right: 5px;"></i> Wohnlage: <strong>${match.wohnlage}</strong></p>
+                <p><i class="fas fa-map-marker-alt" style="margin-right: 8px;"></i> Stadtteil: <strong>${match.ortsteil || 'K/A'}</strong></p>
+            </div>
+            <button class="zoom-button"><i class="fas fa-map" style="margin-right: 5px;"></i> Auf Karte anzeigen</button>
+        `;
+        
+        // Füge Zoom-Button-Funktionalität hinzu
+        const zoomButton = resultCard.querySelector('.zoom-button');
+        
+        // Funktion zum Zoomen und Scrollen zur Kartenposition
+        const zoomToLocation = () => {
+            if (match.coordinates && match.coordinates.length >= 2) {
+                // Lösche vorherige Marker
+                markers.clearLayers();
+                
+                // Füge einen Marker hinzu und zoome heran
+                const marker = L.marker([match.coordinates[1], match.coordinates[0]], {
+                    title: match.address,
+                    riseOnHover: true
+                });
+                markers.addLayer(marker);
+                map.setView([match.coordinates[1], match.coordinates[0]], 16);
+                
+                // Erstelle ein detailliertes Popup
+                const popupContent = `
+                    <div style="min-width: 220px;">
+                        <h4 style="margin: 0 0 8px 0; border-bottom: 1px solid #eee; padding-bottom: 8px;">${match.address}</h4>
+                        <p style="margin: 5px 0;"><strong>Stadtteil:</strong> ${match.ortsteil || 'K/A'}</p>
+                        <p style="margin: 5px 0;"><strong>Wohnlage:</strong> ${match.wohnlage}</p>
+                        <p style="margin: 5px 0;">
+                            <strong>Bewertung:</strong> 
+                            <span style="display: inline-block; padding: 2px 6px; background-color: ${badgeColor}; color: white; border-radius: 3px; font-size: 12px;">
+                                ${match.rating}/4
+                            </span>
+                        </p>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent).openPopup();
+                
+                // Scrolle zur Karte
+                document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
+            }
+        };
+        
+        // Zoom-Button-Klickereignis
+        zoomButton.addEventListener('click', zoomToLocation);
+        
+        // Mache die ganze Karte klickbar, um zur Position zu navigieren
+        resultCard.addEventListener('click', (event) => {
+            // Vermeide Doppelklick, wenn der Button geklickt wurde
+            if (!event.target.classList.contains('zoom-button')) {
+                zoomToLocation();
+            }
+        });
+        
+        // Cursor-Stil für klickbare Karte
+        resultCard.style.cursor = 'pointer';
+        
+        resultsContainer.appendChild(resultCard);
+    });
+}
+        // Handle street form submission
+        document.getElementById('street-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var streetName = document.getElementById('street_name').value;
+            
+            if (!streetName.trim()) {
+                document.getElementById('search-results').innerHTML = `
+                    <div class="warning-box">
+                        <p>Please enter a street name.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Show loading indicator
+            showLoading('search-results');
+            
+            // Clear previous markers
+            markers.clearLayers();
+
+            fetch('/evaluate', {
+                method: 'POST',
+                body: new URLSearchParams('street_name=' + streetName),
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                displaySearchResults(data);
+                
+                // If there's a match, zoom to the first one
+                if (data.count > 0 && data.matches[0].coordinates && data.matches[0].coordinates.length >= 2) {
+                    const coords = data.matches[0].coordinates;
+                    const marker = L.marker([coords[1], coords[0]]);
+                    markers.addLayer(marker);
+                    map.setView([coords[1], coords[0]], 16);
+                    const match = data.matches[0];
+                    marker.bindPopup(`
+                        <strong>Address:</strong> ${match.address}<br>
+                        <strong>District:</strong> ${match.ortsteil || 'N/A'}<br>
+                        <strong>Wohnlage:</strong> ${match.wohnlage}<br>
+                        <strong>Rating:</strong> ${match.rating}/4
+                    `).openPopup();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('search-results', 'An error occurred while searching. Please try again.');
+            });
+        });
+        
+        // Handle district filter changes
+        document.getElementById('district-filter').addEventListener('change', function() {
+            const district = this.value;
+            const resultsContainer = document.getElementById('district-results');
+            
+            if (!district) {
+                resultsContainer.innerHTML = '';
+                return;
+            }
+            
+            showLoading('district-results');
+            
+            // Create a filter for the GeoJSON layer to show only streets in the selected district
+            if (geojsonLayer) {
+                map.removeLayer(geojsonLayer);
+                
+                fetch('/geojson')
+                    .then(response => response.json())
+                    .then(data => {
+                        // Filter features by district
+                        const filteredFeatures = data.features.filter(feature => 
+                            feature.properties.ORTSTEILTX === district
+                        );
+                        
+                        // Count by Wohnlage type
+                        const wohnlageCount = {
+                            'sehr gut': 0,
+                            'gut': 0,
+                            'mittel': 0,
+                            'einfach': 0
+                        };
+                        
+                        filteredFeatures.forEach(feature => {
+                            const wohnlage = feature.properties.WOHNLAGE;
+                            if (wohnlageCount.hasOwnProperty(wohnlage)) {
+                                wohnlageCount[wohnlage]++;
+                            }
+                        });
+                        
+                        // Create a new GeoJSON layer with filtered features
+                        geojsonLayer = L.geoJSON({
+                            type: 'FeatureCollection',
+                            features: filteredFeatures
+                        }, {
+                            style: feature => {
+                                const wohnlageColor = wohnlageColors[feature.properties.WOHNLAGE] || '#000000';
+                                return { 
+                                    color: wohnlageColor,
+                                    fillColor: wohnlageColor,
+                                    fillOpacity: 0.6,
+                                    weight: 1
+                                };
+                            },
+                            onEachFeature: (feature, layer) => {
+                                layer.on('click', () => {
+                                    const center = getFeatureCenter(feature);
+                                    
+                                    let ratingNumber;
+                                    switch(feature.properties.WOHNLAGE) {
+                                        case 'sehr gut': ratingNumber = 1; break;
+                                        case 'gut': ratingNumber = 2; break;
+                                        case 'mittel': ratingNumber = 3; break;
+                                        case 'einfach': ratingNumber = 4; break;
+                                        default: ratingNumber = 'N/A';
+                                    }
+                                    
+                                    L.popup()
+                                        .setLatLng(center)
+                                        .setContent(`
+                                            <strong>Address:</strong> ${feature.properties.ADRESSE}<br>
+                                            <strong>District:</strong> ${feature.properties.ORTSTEILTX || 'N/A'}<br>
+                                            <strong>Wohnlage:</strong> ${feature.properties.WOHNLAGE}<br>
+                                            <strong>Rating:</strong> ${ratingNumber}/4
+                                        `)
+                                        .openOn(map);
+                                });
+                            }
+                        }).addTo(map);
+                        
+                        // Zoom to the bounds of the filtered features
+                        if (filteredFeatures.length > 0) {
+                            const bounds = geojsonLayer.getBounds();
+                            map.fitBounds(bounds);
+                        }
+                        
+                        // Display district statistics
+                        resultsContainer.innerHTML = `
+                            <div class="info-box" style="margin-top: 15px;">
+                                <h3>District: ${district}</h3>
+                                <p>Found ${filteredFeatures.length} addresses in this district.</p>
+                                
+                                <div class="legend" style="margin-top: 10px;">
+                                    <div class="legend-item">
+                                        <div class="color-box" style="background-color: #C500FF"></div>
+                                        <span>Sehr gut (1): ${wohnlageCount['sehr gut']} addresses</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="color-box" style="background-color: #FF0000"></div>
+                                        <span>Gut (2): ${wohnlageCount['gut']} addresses</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="color-box" style="background-color: #E69800"></div>
+                                        <span>Mittel (3): ${wohnlageCount['mittel']} addresses</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="color-box" style="background-color: #9C9C9C"></div>
+                                        <span>Einfach (4): ${wohnlageCount['einfach']} addresses</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .catch(error => {
+                        console.error('Error filtering district:', error);
+                        showError('district-results', 'Failed to load district data.');
+                    });
+            }
+        });
+        
+        // Handle rating filter clicks
+        document.querySelectorAll('.filter-item').forEach(filter => {
+            filter.addEventListener('click', function() {
+                // Remove active class from all filters
+                document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active'));
+                // Add active class to clicked filter
+                this.classList.add('active');
+                
+                // Update current filter
+                currentFilter = this.getAttribute('data-rating');
+                
+                // Reload the GeoJSON with the filter
+                if (geojsonLayer) {
+                    map.removeLayer(geojsonLayer);
+                }
+                
+                loadGeojsonData();
+                
+                // If there are search results, reapply the filter
+                const streetName = document.getElementById('street_name').value;
+                if (streetName) {
+                    fetch('/evaluate', {
+                        method: 'POST',
+                        body: new URLSearchParams('street_name=' + streetName),
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        displaySearchResults(data);
+                    })
+                    .catch(error => {
+                        console.error('Error refiltering results:', error);
+                    });
+                }
+            });
+        });
+        
+        // Load GeoJSON data on page load
+        loadGeojsonData();
+    </script>
+</body>
+</html>

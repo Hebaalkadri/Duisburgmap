@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duisburg Wohnlagen Statistics</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .stats-card {
+            background-color: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .back-button {
+            display: inline-block;
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .chart-container {
+            height: 300px;
+            margin: 20px 0;
+        }
+        .district-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .district-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .district-item:last-child {
+            border-bottom: none;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #999;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .summary-card h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        .summary-card .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        #data-visualization {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-button"><i class="fas fa-arrow-left"></i> Back to Map</a>
+    
+    <div class="container">
+        <h1>Duisburg Wohnlagen Statistics</h1>
+        <div id="stats-container">
+            <div class="loading-spinner"></div>
+            <p>Loading statistics...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Data Visualization</h2>
+        <div id="data-visualization">
+            <div class="loading-spinner"></div>
+            <p>Loading visualization...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Data Export</h2>
+        <p>Download the Duisburg Wohnlagen data for your own analysis:</p>
+        <button id="export-button" class="back-button"><i class="fas fa-download"></i> Export Data</button>
+        <div id="export-status"></div>
+    </div>
+
+    <script>
+        // Fetch statistics from the API
+        fetch('/stats')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('stats-container');
+                
+                if (data.error) {
+                    container.innerHTML = `<div class="stats-card"><p>Error: ${data.error}</p></div>`;
+                    return;
+                }
+                
+                let html = '';
+                
+                // Summary cards
+                html += `<div class="summary-grid">
+                    <div class="summary-card">
+                        <h3>Total Addresses</h3>
+                        <div class="number">${data.total_features || 'N/A'}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Districts</h3>
+                        <div class="number">${data.ortsteil_counts ? Object.keys(data.ortsteil_counts).length : 'N/A'}</div>
+                    </div>
+                </div>`;
+                
+                // Display cache information
+                html += `<div class="stats-card">
+                    <h2>Cache Information</h2>
+                    <p>Data was last updated on: ${new Date(data.cache_date).toLocaleString()}</p>
+                </div>`;
+                
+                // Display feature counts
+                html += `<div class="stats-card">
+                    <h2>Data Summary</h2>
+                    <p>Total features: ${data.total_features}</p>
+                    <p>Total addresses: ${data.csv_rows || 'N/A'}</p>
+                </div>`;
+                
+                // Display Wohnlage counts if available
+                if (data.wohnlage_counts) {
+                    html += `<div class="stats-card">
+                        <h2>Wohnlage Distribution</h2>
+                        <table>
+                            <tr>
+                                <th>Wohnlage</th>
+                                <th>Color</th>
+                                <th>Count</th>
+                                <th>Percentage</th>
+                            </tr>`;
+                    
+                    // Define colors and sort by rating
+                    const colors = {
+                        'sehr gut': '#C500FF',
+                        'gut': '#FF0000',
+                        'mittel': '#E69800',
+                        'einfach': '#9C9C9C'
+                    };
+                    
+                    const ratings = {
+                        'sehr gut': 1,
+                        'gut': 2,
+                        'mittel': 3,
+                        'einfach': 4
+                    };
+                    
+                    const sortedWohnlagen = Object.entries(data.wohnlage_counts)
+                        .sort((a, b) => ratings[a[0]] - ratings[b[0]]);
+                    
+                    const totalCount = Object.values(data.wohnlage_counts).reduce((sum, count) => sum + count, 0);
+                    
+                    for (const [wohnlage, count] of sortedWohnlagen) {
+                        const color = colors[wohnlage] || '#CCCCCC';
+                        const percentage = ((count / totalCount) * 100).toFixed(1);
+                        
+                        html += `<tr>
+                            <td><strong>${wohnlage}</strong></td>
+                            <td><div class="color-box" style="background-color: ${color}"></div></td>
+                            <td>${count}</td>
+                            <td>${percentage}%</td>
+                        </tr>`;
+                    }
+                    
+                    html += `</table>
+                    </div>`;
+                }
+                
+                // Display district counts if available
+                if (data.ortsteil_counts) {
+                    html += `<div class="stats-card">
+                        <h2>District Distribution</h2>
+                        <p>Total districts: ${Object.keys(data.ortsteil_counts).length}</p>
+                        
+                        <div class="district-list">`;
+                    
+                    const sortedDistricts = Object.entries(data.ortsteil_counts)
+                        .sort((a, b) => b[1] - a[1]); // Sort by count, descending
+                    
+                    for (const [district, count] of sortedDistricts) {
+                        html += `<div class="district-item">
+                            <span>${district}</span>
+                            <span>${count} addresses</span>
+                        </div>`;
+                    }
+                    
+                    html += `</div>
+                    </div>`;
+                }
+                
+                container.innerHTML = html;
+                
+                // Create visualization
+                createVisualization(data);
+            })
+            .catch(error => {
+                document.getElementById('stats-container').innerHTML = `
+                    <div class="stats-card">
+                        <p>Error loading statistics: ${error.message}</p>
+                    </div>
+                `;
+            });
+            
+        // Create visualization function
+        function createVisualization(data) {
+            const container = document.getElementById('data-visualization');
+            
+            if (!data.wohnlage_counts) {
+                container.innerHTML = `<p>No data available for visualization.</p>`;
+                return;
+            }
+            
+            // Create simple bar chart for Wohnlage distribution
+            const colors = {
+                'sehr gut': '#C500FF',
+                'gut': '#FF0000',
+                'mittel': '#E69800',
+                'einfach': '#9C9C9C'
+            };
+            
+            const ratings = {
+                'sehr gut': 1,
+                'gut': 2,
+                'mittel': 3,
+                'einfach': 4
+            };
+            
+            const sortedWohnlagen = Object.entries(data.wohnlage_counts)
+                .sort((a, b) => ratings[a[0]] - ratings[b[0]]);
+            
+            const maxCount = Math.max(...Object.values(data.wohnlage_counts));
+            
+            let barChartHtml = `
+                <h3>Wohnlage Distribution</h3>
+                <div style="display: flex; height: 300px; align-items: flex-end; margin-top: 20px;">`;
+            
+            for (const [wohnlage, count] of sortedWohnlagen) {
+                const color = colors[wohnlage] || '#CCCCCC';
+                const height = (count / maxCount) * 100;
+                
+                barChartHtml += `
+                    <div style="flex: 1; margin: 0 5px; text-align: center;">
+                        <div style="height: ${height}%; background-color: ${color}; margin-bottom: 10px;"></div>
+                        <div>${wohnlage}</div>
+                        <div><strong>${count}</strong></div>
+                    </div>`;
+            }
+            
+            barChartHtml += `</div>`;
+            
+            // Create a pie chart for districts (top 10)
+            if (data.ortsteil_counts) {
+                const sortedDistricts = Object.entries(data.ortsteil_counts)
+                    .sort((a, b) => b[1] - a[1]) // Sort by count, descending
+                    .slice(0, 10); // Take top 10
+                
+                const totalCount = sortedDistricts.reduce((sum, [_, count]) => sum + count, 0);
+                
+                let pieChartHtml = `
+                    <h3>Top 10 Districts</h3>
+                    <div style="display: flex; margin: 20px 0;">
+                        <div style="width: 300px; height: 300px; position: relative; margin-right: 30px;">`;
+                
+                let cumulativePercentage = 0;
+                const colors = ['#4CAF50', '#2196F3', '#FFC107', '#FF5722', '#9C27B0', '#795548', '#3F51B5', '#E91E63', '#009688', '#607D8B'];
+                
+                sortedDistricts.forEach(([district, count], index) => {
+                    const percentage = (count / totalCount) * 100;
+                    const color = colors[index % colors.length];
+                    
+                    // Draw pie slice
+                    pieChartHtml += `
+                        <div style="
+                            position: absolute;
+                            width: 100%;
+                            height: 100%;
+                            clip-path: polygon(50% 50%, 50% 0%, 
+                                ${50 + 50 * Math.cos(Math.PI * 2 * (cumulativePercentage + percentage) / 100 - Math.PI/2)}% 
+                                ${50 + 50 * Math.sin(Math.PI * 2 * (cumulativePercentage + percentage) / 100 - Math.PI/2)}%, 
+                                ${50 + 50 * Math.cos(Math.PI * 2 * cumulativePercentage / 100 - Math.PI/2)}% 
+                                ${50 + 50 * Math.sin(Math.PI * 2 * cumulativePercentage / 100 - Math.PI/2)}%);
+                            background-color: ${color};
+                        "></div>`;
+                    
+                    cumulativePercentage += percentage;
+                });
+                
+                pieChartHtml += `</div>
+                    <div>
+                        <table style="width: auto;">`;
+                
+                sortedDistricts.forEach(([district, count], index) => {
+                    const color = colors[index % colors.length];
+                    const percentage = ((count / totalCount) * 100).toFixed(1);
+                    
+                    pieChartHtml += `
+                        <tr>
+                            <td><div class="color-box" style="background-color: ${color}"></div></td>
+                            <td>${district}</td>
+                            <td>${count}</td>
+                            <td>${percentage}%</td>
+                        </tr>`;
+                });
+                
+                pieChartHtml += `</table>
+                    </div>
+                </div>`;
+                
+                container.innerHTML = barChartHtml + pieChartHtml;
+            } else {
+                container.innerHTML = barChartHtml;
+            }
+        }
+        
+        // Handle data export
+        document.getElementById('export-button').addEventListener('click', function() {
+            const statusElement = document.getElementById('export-status');
+            statusElement.innerHTML = `<div class="loading-spinner" style="display: inline-block; margin-left: 10px;"></div> Exporting data...`;
+            
+            fetch('/export')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        statusElement.innerHTML = `
+                            <div class="stats-card" style="margin-top: 10px;">
+                                <p><i class="fas fa-check-circle" style="color: #4CAF50;"></i> Data exported successfully!</p>
+                                <p>Files created:</p>
+                                <ul>
+                                    <li>Complete dataset: ${data.files.complete}</li>
+                                    <li>Compact dataset: ${data.files.compact}</li>
+                                </ul>
+                            </div>`;
+                    } else {
+                        statusElement.innerHTML = `
+                            <div class="stats-card" style="margin-top: 10px; border-left-color: #dc3545;">
+                                <p><i class="fas fa-exclamation-circle" style="color: #dc3545;"></i> Error: ${data.message}</p>
+                            </div>`;
+                    }
+                })
+                .catch(error => {
+                    statusElement.innerHTML = `
+                        <div class="stats-card" style="margin-top: 10px; border-left-color: #dc3545;">
+                            <p><i class="fas fa-exclamation-circle" style="color: #dc3545;"></i> Error: ${error.message}</p>
+                        </div>`;
+                });
+        });
+    </script>
+</body>
+</html>
